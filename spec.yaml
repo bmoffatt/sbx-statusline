@@ -1,0 +1,15 @@
+schemaVersion: "1"
+kind: mixin
+name: bryan-claude
+description: Statusline and rules for claude sandboxes
+
+commands:
+  startup:
+    # merge, don't overwrite: the sandbox's own settings.json keeps its keys
+    - command:
+        - sh
+        - -c
+        - |
+          f="$HOME/.claude/settings.json"
+          [ -s "$f" ] || echo '{}' > "$f"
+          jq '.statusLine = {type: "command", command: "~/.claude/statusline.sh", refreshInterval: 30}' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
