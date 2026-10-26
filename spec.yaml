@@ -10,6 +10,15 @@ commands:
         - sh
         - -c
         - |
+          set -e
           f="$HOME/.claude/settings.json"
           [ -s "$f" ] || echo '{}' > "$f"
-          jq '.statusLine = {type: "command", command: "~/.claude/statusline.sh", refreshInterval: 30} | .preferredNotifChannel = "terminal_bell"' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          jq '. + {
+            statusLine: {
+              type: "command",
+              command: "~/.claude/statusline.sh",
+              refreshInterval: 30
+            },
+            preferredNotifChannel: "terminal_bell"
+          }' "$f" > "$f.tmp"
+          mv "$f.tmp" "$f"
