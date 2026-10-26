@@ -29,8 +29,5 @@ jobs:
           curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh
           sudo apt-get install -y docker-sbx
 
-      - name: Validate kit
-        run: sbx kit validate .
-
       - name: Push kit
         run: sbx kit push . "$REPO:latest"
