@@ -1,14 +1,10 @@
 name: publish
 
-# Push the kit to Docker Hub when a version tag is pushed (git tag v1.1 && git push --tags).
+# Push the kit to Docker Hub as :latest on every push to main.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Image tag to push (e.g. 1.1)
-        required: true
 
 env:
   REPO: docker.io/${{ vars.DOCKERHUB_USERNAME }}/sbx-statusline
@@ -37,7 +33,4 @@ jobs:
         run: sbx kit validate .
 
       - name: Push kit
-        run: |
-          tag="${{ inputs.tag }}"
-          tag="${tag:-${GITHUB_REF_NAME#v}}"
-          sbx kit push . "$REPO:$tag"
+        run: sbx kit push . "$REPO:latest"
