@@ -1,6 +1,6 @@
 schemaVersion: "1"
 kind: mixin
-name: bryan-claude
+name: bmoffatt/sbx-statusline
 description: Statusline and rules for claude sandboxes
 
 commands:
