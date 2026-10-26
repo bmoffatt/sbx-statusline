@@ -1,0 +1,43 @@
+name: publish
+
+# Push the kit to Docker Hub when a version tag is pushed (git tag v1.1 && git push --tags).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to push (e.g. 1.1)
+        required: true
+
+env:
+  REPO: docker.io/${{ vars.DOCKERHUB_USERNAME }}/sbx-statusline
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # sbx falls back to Docker credentials when there is no `sbx login` session.
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Same route as the sandbox-kit-spec README (Ubuntu apt repo).
+      - name: Install sbx
+        run: |
+          curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh
+          sudo apt-get install -y docker-sbx
+
+      - name: Validate kit
+        run: sbx kit validate .
+
+      - name: Push kit
+        run: |
+          tag="${{ inputs.tag }}"
+          tag="${tag:-${GITHUB_REF_NAME#v}}"
+          sbx kit push . "$REPO:$tag"
