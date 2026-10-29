@@ -9,7 +9,12 @@ SEP='│'
 BAR_FULL='█'      # rate-limit gauge, filled cell
 BAR_EMPTY='░'     # rate-limit gauge, empty cell
 BAR_CELLS=5       # gauge width
-RESET_GLYPH='→'   # reads as "resets in" 
+RESET_GLYPH='→'   # reads as "resets in"
+# Nerd Font glyphs, as UTF-8 bytes (private use area, so literals are fragile)
+OS_MAC=$'\xef\x85\xb9'    # U+F179 apple: host
+OS_LINUX=$'\xef\x85\xbc'  # U+F17C tux: non-sandbox linux
+OS_SANDBOX=$'\xef\x8c\x88' # U+F308 docker whale: sandbox guest (IS_SANDBOX=1)
+OS_OTHER='?'
 
 json=$(cat)
 
@@ -98,18 +103,25 @@ fmt_left() { # seconds remaining -> "2h14m" / "18m"
 
 seg=()   # collected segments
 
-# ---- model / effort / mode ------------------------------------------------
-m="${CYAN}${B}${MODEL}${R}"
-[[ -n "$EFFORT" && "$EFFORT" != "null" ]] && m+="${D}${GRAY} ${EFFORT}${R}"
-[[ "$FAST" == "true" ]] && m+=" ${YELLOW}⚡${R}"
-[[ "$THINKING" == "false" ]] && m+=" ${D}${GRAY}nothink${R}"
-[[ -n "$AGENT" ]] && m+=" ${PINK}@${AGENT}${R}"
-[[ -n "$STYLE" && "$STYLE" != "default" && "$STYLE" != "null" ]] && m+=" ${D}${GRAY}${STYLE}${R}"
-seg+=("$m")
+# ---- OS symbol: tells the macOS host from the Linux sandbox at a glance ----
+if [[ "${IS_SANDBOX:-}" == "1" ]]; then
+  os="$(c 39)${OS_SANDBOX}${R}"                # docker blue
+else
+  case "$OSTYPE" in
+    darwin*) os="$OS_MAC" ;;
+    linux*)  os="$(c 220)${OS_LINUX}${R}" ;;   # bright yellow: the filled tux reads dark otherwise
+    *)       os="$OS_OTHER" ;;
+  esac
+fi
 
-# ---- directory + git ------------------------------------------------------
+if [[ "${IS_SANDBOX:-}" == "1" ]]; then   # sandbox name, right after the whale
+  host="${HOSTNAME:-$(hostname 2>/dev/null)}"
+  os+=" ${GRAY}(${host%%.*})${R}"
+fi
+
+# ---- OS + directory + git -------------------------------------------------
 dir="${CWD##*/}"; [[ -z "$dir" ]] && dir="/"
-d="${BLUE}${dir}${R}"
+d="${os} ${BLUE}${dir}${R}"
 if br=$(git -C "$CWD" symbolic-ref --quiet --short HEAD 2>/dev/null) \
   || br=$(git -C "$CWD" rev-parse --short HEAD 2>/dev/null); then
   dirty=""
@@ -119,6 +131,15 @@ fi
 [[ -n "$WORKTREE" ]] && d+=" ${D}${GRAY}wt:${WORKTREE}${R}"
 [[ -n "$PR" ]] && d+=" ${D}${GRAY}#${PR}${R}"
 seg+=("$d")
+
+# ---- model / effort / mode ------------------------------------------------
+m="${CYAN}${B}${MODEL}${R}"
+[[ -n "$EFFORT" && "$EFFORT" != "null" ]] && m+="${D}${GRAY} ${EFFORT}${R}"
+[[ "$FAST" == "true" ]] && m+=" ${YELLOW}⚡${R}"
+[[ "$THINKING" == "false" ]] && m+=" ${D}${GRAY}nothink${R}"
+[[ -n "$AGENT" ]] && m+=" ${PINK}@${AGENT}${R}"
+[[ -n "$STYLE" && "$STYLE" != "default" && "$STYLE" != "null" ]] && m+=" ${D}${GRAY}${STYLE}${R}"
+seg+=("$m")
 
 # ---- context window -------------------------------------------------------
 if [[ -n "$CTXPCT" && "$CTXMAX" -gt 0 ]]; then
