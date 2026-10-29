@@ -13,12 +13,16 @@ commands:
           set -e
           f="$HOME/.claude/settings.json"
           [ -s "$f" ] || echo '{}' > "$f"
-          jq '. + {
+          # append to hooks.Notification rather than replacing it; drop any prior copy first so reruns are no-ops
+          jq --arg cmd "~/.claude/claude-bell.sh" '. + {
             statusLine: {
               type: "command",
               command: "~/.claude/statusline.sh",
               refreshInterval: 30
             },
             preferredNotifChannel: "terminal_bell"
-          }' "$f" > "$f.tmp"
+          }
+          | .hooks.Notification = ((.hooks.Notification // [])
+              | map(select(any(.hooks[]?; .command == $cmd) | not))
+              + [{hooks: [{type: "command", command: $cmd}]}])' "$f" > "$f.tmp"
           mv "$f.tmp" "$f"

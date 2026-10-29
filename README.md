@@ -52,3 +52,40 @@ sbx only installs kits from allowlisted sources. Add my GitHub account first (th
 sbx settings set kit.allowedSources '["docker.io/","github.com/bmoffatt/"]'
 sbx run claude --kit 'git+https://github.com/bmoffatt/sbx-statusline' --name my-project
 ```
+
+### Terminal bell marker for tmux
+
+With several Claude panes open in tmux, a plain terminal bell can't tell you which pane rang: tmux's `alert-bell` only
+reports a window's active pane. This adds a Claude Code `Notification` hook (`files/home/.claude/claude-bell.sh`) that
+sets the pane's title to `🔔 claude` by writing an OSC 2 sequence straight to the pane's pty. A tmux
+`pane-title-changed` hook latches that into a per-pane `@bell` option, and `pane-border-format` shows a red label on
+that pane until you select it.
+
+It works in both setups:
+
+- **Host plugin:** `hooks/hooks.json` registers the script as a `Notification` hook, run from the plugin directory.
+  `scripts/sync.sh` and `settings.json` are not involved.
+- **sbx kit:** the script is copied to `~/.claude/claude-bell.sh` with the statusline, and the startup command appends it
+  to `hooks.Notification` in the sandbox's `settings.json`. Other hooks already there are kept, and restarts don't add
+  duplicates.
+
+Hooks have no controlling tty and their stdout is captured, so the script walks up the process tree to find Claude's
+pty. It falls back to `/proc/<pid>/fd/0` where `ps` has no `-o tty=` (busybox). `preferredNotifChannel` stays
+`terminal_bell`, so the literal bell still rings too.
+
+The tmux side is not installed by this repo. Add this to your own `tmux.conf` (tested on tmux 3.8, `focus-events` is not
+required):
+
+``` tmux
+set -g monitor-bell on
+set -g bell-action other
+set -g pane-border-status top
+set -g pane-border-format '#{?@bell,#[bg=red#,fg=white#,bold] 🔔 #{pane_index}: #{pane_title} #[default],#{pane_index}: #{pane_title}}'
+set-hook -g pane-title-changed 'if -F "#{m:*🔔*,#{pane_title}}" "run-shell \"tmux set -p -t #{pane_id} @bell 1\""'
+set-hook -g after-select-pane 'set -p -u @bell'
+set-hook -g after-select-window 'set -p -u @bell'
+set-hook -g pane-focus-in 'set -p -u @bell'
+```
+
+`pane-border-status top` turns on a one-line border label for every pane in every window, so it changes your layout
+even when no bell is showing.
