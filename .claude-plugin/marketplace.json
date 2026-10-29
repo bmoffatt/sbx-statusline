@@ -1,0 +1,11 @@
+{
+  "name": "sbx-statusline",
+  "owner": { "name": "Bryan Moffatt" },
+  "plugins": [
+    {
+      "name": "sbx-statusline",
+      "source": "./",
+      "description": "Claude Code statusline: directory, git, model, context, cost, and rate-limit gauges"
+    }
+  ]
+}
