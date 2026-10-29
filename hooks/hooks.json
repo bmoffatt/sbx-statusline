@@ -9,6 +9,16 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/files/home/.claude/claude-bell.sh"
+          }
+        ]
+      }
     ]
   }
 }
