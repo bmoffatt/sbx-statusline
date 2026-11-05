@@ -1,0 +1,9 @@
+# The kit's build context is the repo root. Only files/home/ is copied into the
+# overlay; keep the rest (history, the host-side Claude Code plugin, CI, docs)
+# out of the context.
+.git
+.github
+.claude-plugin
+hooks
+scripts
+README.md

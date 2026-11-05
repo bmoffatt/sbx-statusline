@@ -1,6 +1,7 @@
 name: publish
 
-# Push the kit to Docker Hub as :latest on every push to main.
+# Push the kit to Docker Hub on every push to main: :latest, plus the version
+# from sbx-statusline.yaml (bump `version:` there to cut a new pinned tag).
 on:
   push:
     branches: [main]
@@ -17,17 +18,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # sbx falls back to Docker credentials when there is no `sbx login` session.
       - uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Same route as the sandbox-kit-spec README (Ubuntu apt repo).
-      - name: Install sbx
-        run: |
-          curl -fsSL https://get.docker.com | sudo REPO_ONLY=1 sh
-          sudo apt-get install -y docker-sbx
+      # The container driver, not the default `docker` driver: the kit's
+      # descriptor rides in a manifest annotation, and the classic image store
+      # can discard it on push.
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
 
-      - name: Push kit
-        run: sbx kit push . "$REPO:latest"
+      - name: Read kit version
+        id: ver
+        run: |
+          v=$(sed -n 's/^version: *"\{0,1\}\([0-9][0-9A-Za-z.-]*\)"\{0,1\} *$/\1/p' sbx-statusline.yaml)
+          [ -n "$v" ] || { echo "no version: in sbx-statusline.yaml" >&2; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      # v3 kits are ordinary OCI images: one build, one push, and the frontend
+      # named by the descriptor's `# syntax=` line does the rest. No QEMU is
+      # needed; the recipe's only RUN is pinned to the build platform.
+      - name: Build and push kit
+        run: |
+          docker buildx build . -f sbx-statusline.yaml \
+            --platform linux/amd64,linux/arm64 \
+            --provenance=mode=min --push \
+            -t "$REPO:latest" -t "$REPO:${{ steps.ver.outputs.version }}"

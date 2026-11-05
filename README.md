@@ -29,7 +29,10 @@ session after installing to see the line. To remove it, uninstall the plugin and
 
 ### sbx Claude sandbox kit
 
-The sbx mixin kit adds the same statusline to a sandbox.
+The sbx mixin kit adds the same statusline to a sandbox. It is a [v3 kit](https://github.com/docker/sandbox-kit-spec)
+(`sbx-statusline.yaml` plus `sbx-statusline.dockerfile`), so it composes with the v3 `claude` kit but **not** with v1/v2
+kits: sbx rejects a sandbox that mixes the two formats. Use the v3 build of any other kit you add alongside it (for
+example `docker.io/sbx/git-ssh-sign`). It requires the `claude` kit and `jq` in the sandbox.
 
 Create a sandbox with the kit, from the project directory:
 
@@ -38,10 +41,19 @@ sbx run claude --kit docker.io/bmoffatt/sbx-statusline:latest --name my-project
 ```
 
 `docker.io/` is on sbx's default kit allowlist, so no setup is needed. Every push to `main` republishes `:latest` to
-[Docker Hub](https://hub.docker.com/r/bmoffatt/sbx-statusline) (see `.github/workflows/publish.yml`).
+[Docker Hub](https://hub.docker.com/r/bmoffatt/sbx-statusline), along with a tag for the `version:` in
+`sbx-statusline.yaml` (see `.github/workflows/publish.yml`). Bump `version:` when the kit changes.
 
 Later attaches are just `sbx run my-project`. `--kit` applies only when the sandbox is created, so an existing sandbox
 must be removed (`sbx rm`) and recreated to pick it up.
+
+#### From a local checkout
+
+sbx builds a kit directory on demand, so there is no registry or push step while iterating:
+
+``` sh
+sbx run claude --kit . --name my-project
+```
 
 #### From git instead
 

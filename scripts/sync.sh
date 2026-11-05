@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart hook: keep ~/.claude/statusline.sh current and wired into settings.json.
-# Runs every session and is idempotent. Mirrors the sbx kit's startup command in spec.yaml.
+# Runs every session and is idempotent. Mirrors the sbx kit's install hook in sbx-statusline.yaml.
 set -eu
 
 src="${CLAUDE_PLUGIN_ROOT}/files/home/.claude/statusline.sh"

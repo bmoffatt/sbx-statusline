@@ -1,0 +1,56 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+displayName: sbx statusline
+description: Statusline and rules for claude sandboxes
+kind: mixin
+# The kit's own version: the tag this kit publishes under (alongside :latest),
+# and the fallback for anything unversioned. Bump it when the declarations or
+# the shipped script change.
+version: "1.0.0"
+sourceUrl: https://github.com/bmoffatt/sbx-statusline
+# MIGRATION NOTE: v2 had no `requires`. The kit has always assumed both of
+# these, and a v3 mixin can say so:
+#   claude   - the install hook below edits Claude Code's settings.json, and
+#              depending on it orders this kit's hooks after the claude
+#              workload's own settings.json seed (SPEC-v3 lifecycle@1:
+#              hooks run in dependency order). Without that order the
+#              workload's seed would overwrite the statusLine written here.
+#   deb/jq   - statusline.sh and the hook below both parse/merge JSON. jq is
+#              not part of the platform floor (bash, sh, curl, git, CA store),
+#              but every Debian-family workload derives `deb/jq` when it has it.
+requires: ["claude", "deb/jq"]
+capabilities:
+    - type: com.docker.sandbox/lifecycle@1
+      config:
+        install:
+            # Merge, don't overwrite: the sandbox's own settings.json keeps its
+            # keys. The script itself ships in the overlay (see
+            # sbx-statusline.dockerfile) at ~/.claude/statusline.sh.
+            #
+            # MIGRATION NOTE: this was a v2 `startup` hook. It is an install
+            # hook now. It merges into a file the composed workload also
+            # writes (a layer would replace it, not merge it), so it has to be
+            # a hook, but it reads nothing at boot and the merge is idempotent,
+            # so doing it once at create is enough. It also runs before the
+            # session starts: a startup hook runs from a detached dispatcher
+            # concurrently with the live session, so Claude Code could read
+            # settings.json before the statusLine was in it.
+            #
+            # No `env:` list: the body reads only $HOME, which is in the
+            # platform baseline, and jq needs nothing else.
+            - command: |
+                set -e
+                f="$HOME/.claude/settings.json"
+                mkdir -p "$HOME/.claude"
+                [ -s "$f" ] || echo '{}' > "$f"
+                jq '. + {
+                  statusLine: {
+                    type: "command",
+                    command: "~/.claude/statusline.sh",
+                    refreshInterval: 30
+                  },
+                  preferredNotifChannel: "terminal_bell"
+                }' "$f" > "$f.tmp"
+                mv "$f.tmp" "$f"
+              user: agent
+              description: Merge statusLine into Claude settings.json
